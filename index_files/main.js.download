@@ -1,0 +1,2612 @@
+(window["webpackJsonp"] = window["webpackJsonp"] || []).push([[0],[
+/* 0 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* WEBPACK VAR INJECTION */(function(process) {/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "c", function() { return isDevelopment; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "d", function() { return sendXHR; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return failedRequest; });
+/* unused harmony export findLink */
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return debouncer; });
+/* unused harmony export listToArray */
+var isDevelopment = function isDevelopment() {
+  return process && process.env && "production" === 'development';
+};
+var sendXHR = function sendXHR(xhr_parameters, method) {
+  var xhr = new XMLHttpRequest();
+  var request_url = xhr_parameters['request_url'];
+  var request_extras = xhr_parameters['request_extras'];
+  var request_success = xhr_parameters['request_success'];
+  var request_failure = xhr_parameters['request_failure']; // Handle timeouts in modern browsers
+
+  xhr.ontimeout = function () {
+    console.log("FAIL - HTTP request for '" + request_url + "' timed out.");
+  }; // Handle aborted connections
+
+
+  xhr.onabort = function () {
+    console.log("FAIL - HTTP request for '" + request_url + "' was aborted.");
+  }; // Handle when XHR has processed
+
+
+  xhr.onreadystatechange = function () {
+    if (this.readyState === 4) {
+      switch (this.status) {
+        case 200:
+        case 201:
+        case 204:
+          request_success(this.responseText, request_extras);
+          break;
+
+        default:
+          request_failure(this);
+          break;
+      }
+    }
+  };
+
+  xhr.open(method, request_url, true);
+  xhr.timeout = 120000;
+  xhr.withCredentials = true;
+
+  switch (method) {
+    case 'GET':
+      xhr.send();
+      break;
+
+    case 'POST':
+      // This is the request payload
+      xhr.send(request_extras);
+      break;
+  }
+};
+var failedRequest = function failedRequest() {
+  console.log('The request failed.');
+};
+var findLink = function findLink(event) {
+  var target = event['target'];
+  var tag_type = target['tagName'].toLowerCase();
+  var found_link = false;
+
+  if (tag_type === 'a') {
+    found_link = true;
+  } // Cater for clicking on child elements of the anchor
+
+
+  while (!found_link) {
+    target = target['parentNode'];
+    tag_type = target['tagName'].toLowerCase();
+
+    if (tag_type === 'a') {
+      found_link = true;
+    }
+  }
+
+  return target;
+};
+var debouncer = function debouncer(func, wait, immediate) {
+  var timeout;
+  return function executedFunction() {
+    var context = this;
+    var args = arguments;
+
+    var later = function later() {
+      timeout = null;
+      if (!immediate) func.apply(context, args);
+    };
+
+    var callNow = immediate && !timeout;
+    clearTimeout(timeout);
+    timeout = setTimeout(later, wait);
+    if (callNow) func.apply(context, args);
+  };
+}; // Convert nodeList to Array
+
+var listToArray = function listToArray(node_list) {
+  return Array.prototype.slice.call(node_list);
+};
+/* WEBPACK VAR INJECTION */}.call(this, __webpack_require__(7)))
+
+/***/ }),
+/* 1 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "b", function() { return setStorage; });
+/* harmony export (binding) */ __webpack_require__.d(__webpack_exports__, "a", function() { return getStorage; });
+/* unused harmony export deleteStorage */
+/*
+    Private Storage Utilities
+*/
+var canUseBrowserStorage = function canUseBrowserStorage() {
+  try {
+    localStorage.setItem('store', '1');
+    localStorage.removeItem('store');
+    sessionStorage.setItem('store', '1');
+    sessionStorage.removeItem('store');
+    return true;
+  } catch (error) {
+    return false;
+  }
+};
+
+var checkStorageType = function checkStorageType(storage_type) {
+  var storage_enabled = canUseBrowserStorage(); // Fall back to cookies for Safari Private Browsing
+
+  if (!storage_enabled) {
+    storage_type = 'cookie';
+  }
+
+  return storage_type;
+};
+/*
+    Public Storage Utilities
+*/
+
+
+var setStorage = function setStorage(storage_type, storage_key, storage_value, storage_expiry) {
+  var safe_storage_type = checkStorageType(storage_type);
+
+  switch (safe_storage_type) {
+    case 'local':
+      setLocalStorage(storage_key, storage_value);
+      break;
+
+    case 'session':
+      setSessionStorage(storage_key, storage_value);
+      break;
+
+    case 'cookie':
+      // Apply blanket expiry if original storage type is local
+      if (storage_type === 'local') {
+        storage_expiry = 7;
+      } // If no expiry sent (session storage, session cookies) 
+      // then setCookie will handle this
+
+
+      setCookie(storage_key, storage_value, storage_expiry);
+  }
+};
+var getStorage = function getStorage(storage_type, storage_key) {
+  var safe_storage_type = checkStorageType(storage_type);
+
+  switch (safe_storage_type) {
+    case 'local':
+      return getLocalStorage(storage_key);
+
+    case 'session':
+      return getSessionStorage(storage_key);
+
+    case 'cookie':
+      return getCookie(storage_key);
+  }
+};
+var deleteStorage = function deleteStorage(storage_type, storage_key) {
+  var safe_storage_type = checkStorageType(storage_type);
+
+  switch (safe_storage_type) {
+    case 'local':
+      deleteLocalStorage(storage_key);
+      break;
+
+    case 'session':
+      deleteSessionStorage(storage_key);
+      break;
+
+    case 'cookie':
+      deleteCookie(storage_key);
+      break;
+  }
+};
+/*
+    Cookie Storage
+*/
+
+var setCookie = function setCookie(cookie_name, cookie_value, days_active) {
+  var cookie_entry = cookie_name + '=' + encodeURIComponent(cookie_value) + ';';
+
+  if (typeof days_active === 'undefined') {
+    // Session cookie
+    document.cookie = cookie_entry + '; path=/;';
+  } else {
+    // Timed cookie
+    var right_now = new Date();
+    right_now.setTime(right_now.getTime() + days_active * 24 * 60 * 60 * 1000);
+    var expiry_time = 'expires=' + right_now.toUTCString();
+    document.cookie = cookie_entry + expiry_time + '; path=/;';
+  }
+};
+
+var getCookie = function getCookie(cookie_name) {
+  var target = cookie_name + '=';
+  var cookie_jar = decodeURIComponent(document.cookie).split(';');
+  var filtered_jar = cookie_jar.filter(function (cookie, index) {
+    var current = cookie.trim();
+    var match_index = current.indexOf(target);
+
+    if (match_index === 0) {
+      return true;
+    }
+  });
+
+  if (filtered_jar.length > 0) {
+    var chosen_cookie = filtered_jar[0].trim();
+    return chosen_cookie.substring(target.length, chosen_cookie.length);
+  } else {
+    return '';
+  }
+};
+
+var deleteCookie = function deleteCookie(cookie_name) {
+  document.cookie = cookie_name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+};
+/*
+    Local Storage
+*/
+
+
+var setLocalStorage = function setLocalStorage(storage_key, storage_value) {
+  if (typeof storage_value !== 'string') {
+    storage_value = JSON.stringify(storage_value);
+  }
+
+  localStorage.setItem(storage_key, storage_value);
+};
+
+var getLocalStorage = function getLocalStorage(storage_key) {
+  return localStorage.getItem(storage_key);
+};
+
+var deleteLocalStorage = function deleteLocalStorage(storage_key) {
+  localStorage.removeItem(storage_key);
+};
+/*
+    Session Storage
+*/
+
+
+var setSessionStorage = function setSessionStorage(storage_key, storage_value) {
+  if (typeof storage_value !== 'string') {
+    storage_value = JSON.stringify(storage_value);
+  }
+
+  sessionStorage.setItem(storage_key, storage_value);
+};
+
+var getSessionStorage = function getSessionStorage(storage_key) {
+  return sessionStorage.getItem(storage_key);
+};
+
+var deleteSessionStorage = function deleteSessionStorage(storage_key) {
+  sessionStorage.removeItem(storage_key);
+};
+
+/***/ }),
+/* 2 */
+/***/ (function(module, exports, __webpack_require__) {
+
+__webpack_require__(3);
+__webpack_require__(5);
+__webpack_require__(6);
+__webpack_require__(8);
+__webpack_require__(9);
+__webpack_require__(10);
+__webpack_require__(11);
+__webpack_require__(12);
+__webpack_require__(13);
+__webpack_require__(14);
+__webpack_require__(15);
+__webpack_require__(16);
+__webpack_require__(17);
+__webpack_require__(18);
+__webpack_require__(19);
+__webpack_require__(20);
+__webpack_require__(21);
+__webpack_require__(22);
+__webpack_require__(23);
+__webpack_require__(24);
+__webpack_require__(25);
+__webpack_require__(26);
+module.exports = __webpack_require__(27);
+
+
+/***/ }),
+/* 3 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var _styles_global_scss__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(4);
+/* harmony import */ var _styles_global_scss__WEBPACK_IMPORTED_MODULE_0___default = /*#__PURE__*/__webpack_require__.n(_styles_global_scss__WEBPACK_IMPORTED_MODULE_0__);
+// CSS
+
+
+/***/ }),
+/* 4 */
+/***/ (function(module, exports, __webpack_require__) {
+
+// extracted by mini-css-extract-plugin
+
+/***/ }),
+/* 5 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict'; // Global variables
+
+  var squiz = {
+    'fn': {},
+    'vars': {
+      'storage_key': 'ecq-'
+    }
+  }; // Functions
+
+  $(document).mouseup(function (event) {
+    var target = event.target;
+    var device_check = $('body').css('z-index');
+    var autocomplete_container = $('.header-search__autocomplete-wrapper');
+    var autocomplete_parent = $(target).parents('.header-search'); // On Mobile
+
+    if (device_check === '1') {
+      // Close the mobile search if clicking on the body
+      var mobile_search_control = '#header-search__control';
+      var mobile_search_container = $(target).parents('.header-search__wrapper');
+
+      if (mobile_search_container.length > 0) {
+        if (mobile_search_container.find(mobile_search_control).length === 0) {
+          // Click is not on the input or label. Force close the search form
+          $(mobile_search_control).prop('checked', false); // Hide the autocomplete wrapper
+
+          autocomplete_container.addClass('visuallyhidden');
+        }
+      } else {
+        // Click is not on the input or label. Force close the search form
+        $(mobile_search_control).prop('checked', false); // Hide the autocomplete wrapper
+
+        autocomplete_container.addClass('visuallyhidden');
+      }
+    } // On Desktop
+
+
+    if (device_check === '3') {
+      // Hide primary navigation menus when clicking on the body
+      var nav_control_selector = '.nav-item__control';
+      var nav_control_container = $(target).parents('.nav-primary__item');
+
+      if (nav_control_container.length > 0) {
+        if (nav_control_container.find(nav_control_selector).length === 0) {
+          // Click is not on the input or label. Force close the menu
+          $(nav_control_selector).prop('checked', false);
+        }
+      } else {
+        // Click is not on the input or label. Force close the menu
+        $(nav_control_selector).prop('checked', false);
+      } // Hide the autocomplete wrapper
+
+
+      if (autocomplete_parent.length > 0) {
+        if (autocomplete_parent.find(autocomplete_container).length === 0) {
+          autocomplete_container.addClass('visuallyhidden');
+        }
+      } else {
+        autocomplete_container.addClass('visuallyhidden');
+      }
+    }
+  }); // Smooth anchor scrolling
+
+  squiz.fn.smoothAnchorScroll = function (event) {
+    var target_anchor = $(this).attr('href');
+
+    if (target_anchor.indexOf('#') === 0 && target_anchor.length > 1) {
+      event.preventDefault();
+      var scroll_speed = 1000;
+      var scroll_top = $(target_anchor).offset().top - 250;
+      $('html, body').animate({
+        'scrollTop': scroll_top
+      }, scroll_speed);
+    }
+  }; // Make squiz variable available to the console for debugging
+
+
+  window.squiz = squiz; // Ready
+
+  $(document).ready(function () {
+    // Binds
+    $('body').on('change', '.nav-item__control', squiz.fn.toggleDesktopNavMenus);
+    $('body').on('click', 'a', squiz.fn.smoothAnchorScroll);
+  });
+})();
+
+/***/ }),
+/* 6 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var src_lib_utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(0);
+
+
+(function () {
+  'use strict';
+  /*
+   * =================================
+   * Banner - Module
+   * =================================
+   * 
+   * If banner type is boundaries:
+   * - populate user's electorate boundaries
+   * 
+   */
+
+  var banner_module = function () {
+    // Setup Banner - Boundary Type
+    function setupBannerBoundaryType() {
+      function setupUserElectionBoundaryText() {
+        // Populate banner with user stored address details
+        var user_state_district = user_stored_address.state_district;
+        var user_council_area = user_stored_address.council_area;
+        var user_council_ward = user_stored_address.council_ward;
+
+        if (user_state_district) {
+          banner.$root.find(".banner__state-gov-electorate-location").text(user_state_district);
+        }
+
+        if (user_council_area) {
+          banner.$root.find(".banner__local-council-location").text(user_council_area);
+        }
+
+        if (user_council_ward) {
+          // Remove area name from ward name
+          user_council_ward = user_council_ward.replace(user_council_area, '');
+          banner.$root.find(".banner__ward-location").text(user_council_ward);
+        } else {
+          banner.$root.find(".banner__ward-detail").remove();
+        }
+      } // Get user address details from global function which returns details as a JS object with keys
+      // address, council_district, council_ward, geometry, state_district
+      // This will determine:
+      // - User Election Boundary Text
+
+
+      var user_stored_address = squiz.fn.getStoredAddress();
+
+      if (user_stored_address !== null) {
+        setupUserElectionBoundaryText();
+      }
+    } // Initialise module
+
+
+    function init() {
+      // Get root node
+      banner.$root = $(".banner__wrapper"); // If root node exists
+
+      if (banner.$root.length) {
+        if (banner.$root.hasClass("banner--boundaries")) {
+          setupBannerBoundaryType();
+        }
+      }
+    }
+
+    var banner = {};
+    return {
+      init: init
+    };
+  }(); // Making the init function global
+
+
+  squiz.fn.initBoundariesBanner = function () {
+    banner_module.init();
+  };
+
+  squiz.fn.getBoundaryBanner = function () {
+    var district_url = document.querySelector('#boundaries-map').getAttribute('data-banners');
+    var xhr_parameters = {
+      'request_url': district_url,
+      'request_success': squiz.fn.processBannerList,
+      'request_failure': src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* failedRequest */ "b"],
+      'request_extras': ''
+    };
+    Object(src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* sendXHR */ "d"])(xhr_parameters, 'GET');
+  };
+
+  squiz.fn.processBannerList = function (response) {
+    var banner_list = JSON.parse(response);
+    var stored_address = squiz.fn.getStoredAddress();
+    var related_banner = {
+      'index': -1,
+      'data': {}
+    }; // Lookup value
+
+    var lookup_key = 'council_ward';
+    var stored_value = stored_address[lookup_key]; // Find the relevant banner
+
+    banner_list.forEach(function (banner, banner_index) {
+      var area_list = banner[lookup_key];
+
+      if (area_list.indexOf(stored_value) !== -1) {
+        related_banner['index'] = banner_index;
+        related_banner['data'] = banner;
+      }
+    });
+
+    if (related_banner['index'] !== -1) {
+      var banner_data = related_banner['data'];
+      var boundaries_banner = $('.banner--boundaries'); // Mobile styles
+
+      boundaries_banner.find('.banner.show-mobile').css({
+        'background-image': 'url(' + banner_data['mobile_url'] + ')'
+      }); // Desktop styles
+
+      boundaries_banner.find('.banner.show-desktop').css({
+        'background-image': 'url(' + banner_data['desktop_url'] + ')'
+      });
+    }
+  };
+})();
+
+/***/ }),
+/* 7 */
+/***/ (function(module, exports) {
+
+// shim for using process in browser
+var process = module.exports = {};
+
+// cached from whatever global is present so that test runners that stub it
+// don't break things.  But we need to wrap it in a try catch in case it is
+// wrapped in strict mode code which doesn't define any globals.  It's inside a
+// function because try/catches deoptimize in certain engines.
+
+var cachedSetTimeout;
+var cachedClearTimeout;
+
+function defaultSetTimout() {
+    throw new Error('setTimeout has not been defined');
+}
+function defaultClearTimeout () {
+    throw new Error('clearTimeout has not been defined');
+}
+(function () {
+    try {
+        if (typeof setTimeout === 'function') {
+            cachedSetTimeout = setTimeout;
+        } else {
+            cachedSetTimeout = defaultSetTimout;
+        }
+    } catch (e) {
+        cachedSetTimeout = defaultSetTimout;
+    }
+    try {
+        if (typeof clearTimeout === 'function') {
+            cachedClearTimeout = clearTimeout;
+        } else {
+            cachedClearTimeout = defaultClearTimeout;
+        }
+    } catch (e) {
+        cachedClearTimeout = defaultClearTimeout;
+    }
+} ())
+function runTimeout(fun) {
+    if (cachedSetTimeout === setTimeout) {
+        //normal enviroments in sane situations
+        return setTimeout(fun, 0);
+    }
+    // if setTimeout wasn't available but was latter defined
+    if ((cachedSetTimeout === defaultSetTimout || !cachedSetTimeout) && setTimeout) {
+        cachedSetTimeout = setTimeout;
+        return setTimeout(fun, 0);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedSetTimeout(fun, 0);
+    } catch(e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't trust the global object when called normally
+            return cachedSetTimeout.call(null, fun, 0);
+        } catch(e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error
+            return cachedSetTimeout.call(this, fun, 0);
+        }
+    }
+
+
+}
+function runClearTimeout(marker) {
+    if (cachedClearTimeout === clearTimeout) {
+        //normal enviroments in sane situations
+        return clearTimeout(marker);
+    }
+    // if clearTimeout wasn't available but was latter defined
+    if ((cachedClearTimeout === defaultClearTimeout || !cachedClearTimeout) && clearTimeout) {
+        cachedClearTimeout = clearTimeout;
+        return clearTimeout(marker);
+    }
+    try {
+        // when when somebody has screwed with setTimeout but no I.E. maddness
+        return cachedClearTimeout(marker);
+    } catch (e){
+        try {
+            // When we are in I.E. but the script has been evaled so I.E. doesn't  trust the global object when called normally
+            return cachedClearTimeout.call(null, marker);
+        } catch (e){
+            // same as above but when it's a version of I.E. that must have the global object for 'this', hopfully our context correct otherwise it will throw a global error.
+            // Some versions of I.E. have different rules for clearTimeout vs setTimeout
+            return cachedClearTimeout.call(this, marker);
+        }
+    }
+
+
+
+}
+var queue = [];
+var draining = false;
+var currentQueue;
+var queueIndex = -1;
+
+function cleanUpNextTick() {
+    if (!draining || !currentQueue) {
+        return;
+    }
+    draining = false;
+    if (currentQueue.length) {
+        queue = currentQueue.concat(queue);
+    } else {
+        queueIndex = -1;
+    }
+    if (queue.length) {
+        drainQueue();
+    }
+}
+
+function drainQueue() {
+    if (draining) {
+        return;
+    }
+    var timeout = runTimeout(cleanUpNextTick);
+    draining = true;
+
+    var len = queue.length;
+    while(len) {
+        currentQueue = queue;
+        queue = [];
+        while (++queueIndex < len) {
+            if (currentQueue) {
+                currentQueue[queueIndex].run();
+            }
+        }
+        queueIndex = -1;
+        len = queue.length;
+    }
+    currentQueue = null;
+    draining = false;
+    runClearTimeout(timeout);
+}
+
+process.nextTick = function (fun) {
+    var args = new Array(arguments.length - 1);
+    if (arguments.length > 1) {
+        for (var i = 1; i < arguments.length; i++) {
+            args[i - 1] = arguments[i];
+        }
+    }
+    queue.push(new Item(fun, args));
+    if (queue.length === 1 && !draining) {
+        runTimeout(drainQueue);
+    }
+};
+
+// v8 likes predictible objects
+function Item(fun, array) {
+    this.fun = fun;
+    this.array = array;
+}
+Item.prototype.run = function () {
+    this.fun.apply(null, this.array);
+};
+process.title = 'browser';
+process.browser = true;
+process.env = {};
+process.argv = [];
+process.version = ''; // empty string to avoid regexp issues
+process.versions = {};
+
+function noop() {}
+
+process.on = noop;
+process.addListener = noop;
+process.once = noop;
+process.off = noop;
+process.removeListener = noop;
+process.removeAllListeners = noop;
+process.emit = noop;
+process.prependListener = noop;
+process.prependOnceListener = noop;
+
+process.listeners = function (name) { return [] }
+
+process.binding = function (name) {
+    throw new Error('process.binding is not supported');
+};
+
+process.cwd = function () { return '/' };
+process.chdir = function (dir) {
+    throw new Error('process.chdir is not supported');
+};
+process.umask = function() { return 0; };
+
+
+/***/ }),
+/* 8 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+  /*
+      Functions
+  */
+  // Show / Hide a specific map layer
+
+  squiz.fn.toggleLocalAreaMap = function (event) {
+    var target_input = event['target'];
+    var target_layer = target_input.getAttribute('data-type');
+    var is_checked = target_input['checked'];
+    var stored_address = squiz.fn.getStoredAddress();
+    squiz['vars']['map_layers'].forEach(function (map_layer, layer_index) {
+      var layer_name = map_layer['name'];
+
+      if (layer_name === stored_address[target_layer]) {
+        if (is_checked) {
+          map_layer['layer'].setMap(squiz['vars']['boundaries_map']);
+        } else {
+          map_layer['layer'].setMap(null);
+        }
+      }
+    });
+  };
+  /*
+      Ready
+  */
+
+
+  $(document).ready(function () {
+    // Binds
+    $('body').on('change', '.boundaries-info-utility__switch-input', squiz.fn.toggleLocalAreaMap);
+  });
+})();
+
+/***/ }),
+/* 9 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+  /*
+   * =================================
+   * Boundaries Info - Module
+   * =================================
+   * 
+   */
+
+  /*
+      Private
+  */
+  // Read stored object and process address, state district, council area and ward
+
+  function getBoundaryInfo() {
+    var user_stored_address = squiz.fn.getStoredAddress();
+    var boundaries_info = {}; // There will be an error if an undefined is passed to the cleanUserAddressDetail function
+    // Check first if it exists
+
+    if (user_stored_address['state_district']) {
+      boundaries_info['state_district'] = user_stored_address['state_district'];
+    }
+
+    if (user_stored_address['council_area']) {
+      boundaries_info['council_area'] = user_stored_address['council_area'];
+    }
+
+    if (user_stored_address['council_ward']) {
+      boundaries_info['council_ward'] = user_stored_address['council_ward'].replace(user_stored_address['council_area'], '');
+    }
+
+    return boundaries_info;
+  }
+  /*
+      Global
+  */
+  // Making the init function global
+
+
+  squiz.fn.initBoundariesInfo = function () {
+    // Get root node
+    var boundaries_info_wrapper = $(".boundaries-info__wrapper"); // If root node exists
+
+    if (boundaries_info_wrapper.length) {
+      // Get user address details from global function which returns details as a JS object with keys
+      // address, council_district, council_ward, geometry, state_district
+      var user_stored_address = squiz.fn.getStoredAddress();
+
+      if (user_stored_address !== null) {
+        squiz.fn.setFullAddressText();
+        squiz.fn.setBoundaryInfo();
+      }
+    }
+  }; // Set Full Address Text
+
+
+  squiz.fn.setFullAddressText = function () {
+    var user_stored_address = squiz.fn.getStoredAddress();
+    var user_address = '';
+
+    if (user_stored_address !== null) {
+      user_address = user_stored_address['address'];
+    }
+
+    $(".boundaries-info__for-user-address").text(user_address);
+  }; // Set Location Text
+
+
+  squiz.fn.setBoundaryInfo = function () {
+    var user_stored_address = squiz.fn.getStoredAddress();
+    var view_type = user_stored_address['selected_map']; // Defaults
+
+    var location_text = '';
+    var boundaries_info = getBoundaryInfo(); // These are dependent on the data attributes stored on the buttons
+
+    if (view_type === "state_government") {
+      location_text = boundaries_info['state_district'];
+    } else {
+      location_text = "Local Government Area - " + "<strong> " + boundaries_info['council_area'] + "</strong>";
+
+      if (boundaries_info['council_ward']) {
+        location_text += " <br />";
+        location_text += "Division/Ward - " + "<strong>" + boundaries_info['council_ward'] + "</strong>";
+      }
+    }
+
+    $(".boundaries-info__location").html(location_text);
+  };
+})();
+
+/***/ }),
+/* 10 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+  /*
+   * =================================
+   * Boundaries Buttons - Module
+   * =================================
+   * 
+   */
+
+  var boundaries_buttons_module = function () {
+    // Set up the buttons - State Government <> Local Council
+    function setupButtons() {
+      $boundaries_buttons.click(function (event) {
+        var $this = $(event.target); // If button clicked on is not already active
+
+        if (!$this.hasClass(button_active_class)) {
+          var selected_view_type = $this.data("view-type");
+          $boundaries_buttons.removeClass(button_active_class).prop("aria-pressed", "false");
+          $this.addClass(button_active_class).prop("aria-pressed", "true"); // Save last view type to local storage
+
+          var stored_address = squiz.fn.getStoredAddress();
+          stored_address['selected_map'] = selected_view_type;
+          squiz.fn.storeAddressSearch(stored_address); // Update boundary information
+
+          squiz.fn.setBoundaryInfo(); // Update the map
+
+          squiz.fn.loadChosenMap(); // Update current representatives
+          // squiz.fn.initCurrentRepresentatives();
+        }
+      });
+    } // Set the inital state
+    // On page load, should State Gov or Local council be selected?
+    // Note that users can save the "last state" they had which is stored in local storage
+
+
+    function setInitialState() {
+      var stored_address = squiz.fn.getStoredAddress(); // The value is the same value stored in a data attribute of one of the buttons
+
+      var last_boundary_view_type = stored_address['selected_map']; // If its a valid value
+
+      if (last_boundary_view_type) {
+        $boundaries_buttons.filter("[data-view-type='" + last_boundary_view_type + "']").trigger("click");
+      } else {
+        // Trigger click on the first button
+        $boundaries_buttons.first().trigger("click");
+      }
+    } // Initialise module
+
+
+    function init() {
+      // Get buttons
+      $boundaries_buttons = $(".boundaries-buttons__button"); // If buttons exists
+
+      if ($boundaries_buttons.length) {
+        setupButtons();
+        setInitialState();
+      }
+    }
+
+    var $boundaries_buttons;
+    var button_active_class = "boundaries-buttons__button--active";
+    return {
+      init: init
+    };
+  }(); // Making the init function global
+
+
+  squiz.fn.initBoundariesButtons = function () {
+    boundaries_buttons_module.init();
+  };
+})();
+
+/***/ }),
+/* 11 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var src_lib_utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(0);
+/* harmony import */ var src_lib_storage__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
+
+
+
+(function () {
+  'use strict'; // Create map
+
+  squiz.fn.createMap = function () {
+    var map_centre = new google.maps.LatLng(-20, 145);
+    var map_options = {
+      'center': map_centre,
+      'zoomControl': true,
+      'zoom': 5,
+      'minZoom': 3,
+      'scaleControl': true,
+      'mapTypeId': google.maps.MapTypeId.ROADMAP,
+      'gestureHandling': 'cooperative'
+    };
+    var boundaries_map = new google.maps.Map(document.getElementById("boundaries-map"), map_options);
+    squiz['vars']['boundaries_map'] = boundaries_map;
+    squiz['vars']['map_layers'] = [];
+  }; // Get all of the district information for processing
+
+
+  squiz.fn.loadData = function (data_type) {
+    var district_attribute = 'data-' + data_type;
+    var district_url = document.querySelector('#boundaries-map').getAttribute(district_attribute);
+    var xhr_parameters = {
+      'request_url': district_url,
+      'request_success': squiz.fn.processDistrictList,
+      'request_failure': src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* failedRequest */ "b"],
+      'request_extras': data_type.replace('-', '_')
+    };
+    Object(src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* sendXHR */ "d"])(xhr_parameters, 'GET');
+  }; // Process district information
+
+
+  squiz.fn.processDistrictList = function (response, data_type) {
+    var clean_response = response.replace('<?xml version="1.0"?>', '');
+    var json_response = JSON.parse(clean_response);
+    squiz['vars'][data_type] = json_response; // Find the relevant district
+
+    var location_object = squiz['vars']['location'];
+    squiz.fn.findDistrictByCoords(location_object, data_type);
+  }; // Generate data path
+
+
+  squiz.fn.generatePathToResources = function (data_type) {
+    var data_url = location.origin + "/static/"; // Check which information to load
+
+    switch (data_type) {
+      case 'state':
+        data_url += 'State_districts/';
+        break;
+
+      case 'council':
+      case 'ward':
+        data_url += 'Local_government_areas/';
+        break;
+    }
+
+    return data_url;
+  }; // Generate KML path
+
+
+  squiz.fn.generatePathToKML = function (district_name, data_type) {
+    var map_container = document.getElementById('boundaries-map');
+    var layer_url = ''; // Check which information to load
+
+    switch (data_type) {
+      case 'state':
+        layer_url = map_container.getAttribute('data-state-kml');
+        break;
+
+      case 'council':
+        layer_url = map_container.getAttribute('data-area-kml');
+        break;
+
+      case 'ward':
+        layer_url = map_container.getAttribute('data-division-kml');
+        break;
+    } // This will make a call to REST resource assets
+    // Make sure that xml files are lowercased and underscored
+
+
+    layer_url += '?boundary=' + district_name.replace(/ /g, '_').toLowerCase();
+    return layer_url;
+  }; // Generate PDF path
+
+
+  squiz.fn.generatePathToPDF = function (district_name, data_type) {
+    var pdf_url = squiz.fn.generatePathToResources(data_type); // Generate the complete PDF URL
+    // Make sure that pdf files are lowercased and underscored
+
+    pdf_url += "PDF/" + district_name.replace(/ /g, '_').toLowerCase() + ".pdf";
+    return pdf_url;
+  }; // Reset the map
+
+
+  squiz.fn.resetBoundariesMap = function () {
+    var map_layers = squiz['vars']['map_layers'];
+
+    if (typeof map_layers !== 'undefined') {
+      squiz['vars']['map_layers'].forEach(function (layer, layer_index) {
+        layer['layer'].setMap(null);
+      });
+    }
+  }; // Find district by coordinates
+
+
+  squiz.fn.findDistrictByCoords = function (source_data, target_list) {
+    var all_districts = squiz['vars'][target_list];
+    var layer_type = '';
+    var matched_districts = [];
+    all_districts.forEach(function (district, district_index) {
+      var object_data = {
+        'index': -1,
+        'district': {}
+      }; // By using each districts min and max lat and lngs, we form a box
+      // We do a basic match to check if user's coordinates is within this box.
+      // Everytime the coordinate falls within one of the district's box, we add to an array
+
+      if (parseFloat(source_data['minlat']) >= parseFloat(district['minlat']) && parseFloat(source_data['minlng']) >= parseFloat(district['minlng']) && parseFloat(source_data['maxlat']) <= parseFloat(district['maxlat']) && parseFloat(source_data['maxlng']) <= parseFloat(district['maxlng'])) {
+        object_data['index'] = district_index;
+        object_data['district'] = district;
+        matched_districts.push(object_data);
+      }
+    });
+
+    switch (target_list) {
+      case 'state_districts':
+        layer_type = 'state';
+        break;
+
+      case 'council_areas':
+        layer_type = 'council';
+        break;
+
+      case 'council_wards':
+        layer_type = 'ward';
+        break;
+    } // After checking if coordinates fall within each districts lat lng "box, " f
+    // we must still check the user coordinates by plotting a polygon map of each district
+
+
+    if (matched_districts.length) {
+      squiz.fn.findExactDistrict(matched_districts, layer_type);
+    } else {
+      // No matched districts. Save as blank key
+      squiz.fn.saveLocationData(layer_type, "");
+    }
+  };
+
+  squiz.fn.findExactDistrict = function (matched_districts, layer_type) {
+    // Will use deferred promises to make a function run only when all xml files have been ajaxed and processed
+    var processed_districts_deferreds = [];
+    matched_districts.forEach(function (district, district_index) {
+      var processed_district_deferred = squiz.fn.loadDistrictXML(district, layer_type);
+      processed_districts_deferreds.push(processed_district_deferred);
+    }); // This is executed only when all ajax calls of the district are processed
+    // Keep in mind - District type key is stored in local storage only when all districts of this type have been processed  
+
+    $.when.apply($, processed_districts_deferreds).then(function () {
+      // By the time all districts of this type have been processed and if theres still no global var of the district type set, set key to blank in storage
+      if (squiz['vars'][layer_type]) {
+        // Save into local storage
+        squiz.fn.saveLocationData(layer_type, squiz['vars'][layer_type]);
+      } else {
+        // An empty value means user's coorindates was not found in any district coordinates
+        squiz.fn.saveLocationData(layer_type, "");
+      }
+    });
+  };
+
+  squiz.fn.generateGoogleMapsLatLngArray = function ($boundary_coordinates_tag) {
+    var google_maps_latlng_array = []; // Get text and split by line breaks to create an array
+    // e.g. ["143.40159,-9.757185,0","143.401925,-9.757182,0", ... ]
+
+    var boundary_coordinates_string_array = $boundary_coordinates_tag.text().trim().split('\n');
+    boundary_coordinates_string_array.forEach(function (coordinate_string, coordinate_index) {
+      // Trim and further split it into an array
+      // e.g. 143.40159,-9.757185,0 will become [143.40159,-9.757185,0]
+      var coordinates_array = coordinate_string.trim().split(','); // Create a LatLng object with the two coordinates
+
+      var google_maps_latlng = new google.maps.LatLng(coordinates_array[1], coordinates_array[0]);
+      google_maps_latlng_array.push(google_maps_latlng);
+    });
+    return google_maps_latlng_array;
+  }; // Get all of the district information for processing
+  // A kml file consists of 1 or more polygon tags
+  // Each polygon would contain an outerBoundaryIs and multiple innerBoundaryIs tags
+  // The outerBoundaryIs contains coordinates to represent the "whole area" 
+  // innerBoundaryIs contains coordinates to represent area cut outs which are not part of the outerBoundary shape
+  // We need to check if the user coordinates falls into the outer boundary and not in any of the inner boundary
+
+
+  squiz.fn.loadDistrictXML = function (district_data, district_type) {
+    // Get coordinates of user's address
+    var stored_address = squiz.fn.getStoredAddress();
+    var address_coordinates = stored_address['geometry']['location'];
+    var address_latlng = new google.maps.LatLng(address_coordinates['lat'], address_coordinates['lng']);
+    var district_name = district_data['district']['DistrictName'];
+    var district_url = squiz.fn.generatePathToKML(district_name, district_type); // Returns a promise
+
+    return $.get(district_url, function (xml_doc) {
+      // Find each polygon tag
+      var $polygon_tags = $(xml_doc).find('Polygon'); // For each polygon tag
+
+      $polygon_tags.each(function (index) {
+        var $this_polygon = $(this); // This will be used to generate the polygon.
+        // Format is [[outer boundary latlng obj], [inner boundary 1 latlng obj], [innerboundary 2 latlng obj], ...]
+
+        var polygon_paths_array = []; // Get outer boundary coordinates
+
+        var $outer_boundary_coordinates_tag = $this_polygon.find("outerBoundaryIs coordinates"); // This runs only if an outerBoundaryIs tag exists
+
+        if ($outer_boundary_coordinates_tag.length) {
+          var outer_boundary_google_maps_latlng_array = squiz.fn.generateGoogleMapsLatLngArray($outer_boundary_coordinates_tag);
+          polygon_paths_array.push(outer_boundary_google_maps_latlng_array); // Get inner boundary coordinates
+
+          var $inner_boundary_coordinates_tags = $this_polygon.find("innerBoundaryIs coordinates");
+          $inner_boundary_coordinates_tags.each(function (index) {
+            var $this_inner_boundary_coordinate_tag = $(this);
+            var inner_boundary_google_maps_latlng_array = squiz.fn.generateGoogleMapsLatLngArray($this_inner_boundary_coordinate_tag);
+            polygon_paths_array.push(inner_boundary_google_maps_latlng_array);
+          }); // Create polygon. This polygon can have "inner boundaries" which are "cut out holes" and are areas
+          // not part of the polygon
+
+          var district_polygon = new google.maps.Polygon({
+            'paths': polygon_paths_array
+          }); // Use googles containsLocation function to check if user's address lat lng is within polygon
+
+          var is_contains_coords = google.maps.geometry.poly.containsLocation(address_latlng, district_polygon);
+
+          if (is_contains_coords) {
+            // Set global var to keep track that a district has been found
+            squiz['vars'][district_type] = district_name; // Break loop. Don't need to process other polygons
+
+            return false;
+          }
+        }
+      });
+    });
+  }; // Load the district KML and apply to the map
+
+
+  squiz.fn.loadMapKML = function (district_name, district_type, preserve_viewport) {
+    var map_layers = squiz['vars']['map_layers'];
+    var existing_index = -1;
+    var is_new_layer = true; // Check for existing layers
+
+    map_layers.forEach(function (layer, layer_index) {
+      var layer_name = layer['name'];
+
+      if (layer_name === district_name) {
+        is_new_layer = false;
+        existing_index = layer_index;
+      }
+    });
+
+    if (is_new_layer) {
+      var cache_buster = document.querySelector('#boundaries-map').getAttribute('data-bust');
+      var layer_url = squiz.fn.generatePathToKML(district_name, district_type);
+      layer_url += '&bust=' + cache_buster;
+      var district_layer = new google.maps.KmlLayer(layer_url, {
+        'suppressInfoWindows': true,
+        'preserveViewport': preserve_viewport
+      });
+      district_layer.setMap(squiz['vars']['boundaries_map']); // Save for later
+
+      var layer_object = {
+        'name': district_name,
+        'layer': district_layer
+      };
+      squiz['vars']['map_layers'].push(layer_object);
+    } // Show the map layer
+
+
+    if (existing_index !== -1) {
+      squiz.fn.toggleMapLayer(existing_index);
+    }
+  }; // Save district data to storage
+
+
+  squiz.fn.saveLocationData = function (district_type, district_name) {
+    var stored_address = squiz.fn.getStoredAddress();
+
+    switch (district_type) {
+      case 'state':
+        stored_address['state_district'] = district_name;
+        break;
+
+      case 'council':
+        stored_address['council_area'] = district_name;
+        break;
+
+      case 'ward':
+        stored_address['council_ward'] = district_name;
+        break;
+    } // Save the address result
+
+
+    squiz.fn.storeAddressSearch(stored_address); // Check to see if all data loaded
+
+    var all_data_found = squiz.fn.checkAddressValues(stored_address);
+
+    if (all_data_found) {
+      // If at least state district and council area values exist, display the map
+      if (stored_address['state_district'] && stored_address['council_area']) {
+        squiz.fn.completeBoundaryPage();
+      } else {
+        // If no state district and no council area, display no location found message
+        squiz.fn.noLocationFound();
+      }
+    }
+  }; // Finisher functions when all data is found
+
+
+  squiz.fn.completeBoundaryPage = function () {
+    // Fetch the relevant banner
+    squiz.fn.getBoundaryBanner(); // Load map layers
+
+    squiz.fn.loadChosenMap(); // Init the banner
+
+    squiz.fn.initBoundariesBanner(); // Init location buttons
+
+    squiz.fn.initBoundariesButtons(); // Init location information
+
+    squiz.fn.initBoundariesInfo(); // Show current representatives
+    // squiz.fn.initCurrentRepresentatives();
+    // Reveal page
+
+    $('.boundaries__loader-wrapper').css({
+      'display': 'none'
+    });
+    $('.boundaries__content').css({
+      'display': 'block'
+    });
+  }; // Check if state district, council area and council ward have already been stored in local storage
+  // If the object does not have 1 of the 3 properties, then the check has failed and the script has to find out the location
+
+
+  squiz.fn.checkAddressValues = function (stored_address) {
+    if (!stored_address.hasOwnProperty('state_district')) {
+      return false;
+    }
+
+    if (!stored_address.hasOwnProperty('council_area')) {
+      return false;
+    }
+
+    if (!stored_address.hasOwnProperty('council_ward')) {
+      return false;
+    }
+
+    return true;
+  }; // Load a map view based on selected area
+
+
+  squiz.fn.loadChosenMap = function () {
+    var stored_address = squiz.fn.getStoredAddress();
+    var selected_map = stored_address['selected_map']; // Reset map layers
+
+    squiz.fn.resetBoundariesMap();
+
+    switch (selected_map) {
+      case 'local_council':
+        // The preserve viewport determines whether the map centres on the box
+        if (stored_address['council_ward']) {
+          // Load council map with preserve viewport set as true
+          squiz.fn.loadMapKML(stored_address['council_area'], 'council', true); // Load ward map
+
+          squiz.fn.loadMapKML(stored_address['council_ward'], 'ward', false);
+        } else {
+          // Load council map with preserve viewport set as false
+          squiz.fn.loadMapKML(stored_address['council_area'], 'council', false);
+        }
+
+        break;
+
+      default:
+        // Load State Map
+        squiz.fn.loadMapKML(stored_address['state_district'], 'state', false);
+        break;
+    }
+
+    squiz.fn.loadMapExtras(selected_map);
+  }; // Load extra utilities for the map
+
+
+  squiz.fn.loadMapExtras = function (selected_map) {
+    var stored_address = squiz.fn.getStoredAddress();
+
+    if (stored_address !== null) {
+      var boundaries_info_wrapper = $('.boundaries-info-utility__wrapper');
+      var switch_markup = '';
+      var switch_label = '';
+      var pdf_links = [];
+
+      switch (selected_map) {
+        case 'local_council':
+          boundaries_info_wrapper.addClass('boundaries-info--double'); // Generate Switch
+
+          switch_label = 'Local Government Area - ' + "<strong>" + stored_address['council_area'].toUpperCase() + "</strong>";
+          switch_markup = squiz.fn.generateLayerSwitch('council_area', switch_label); // Generate link to council area PDF
+
+          pdf_links.push(squiz.fn.generatePathToPDF(stored_address['council_area'], 'council')); // Only generate link to ward PDF if ward exists
+
+          if (stored_address['council_ward']) {
+            pdf_links.push(squiz.fn.generatePathToPDF(stored_address['council_ward'], 'ward'));
+          }
+
+          break;
+
+        default:
+          boundaries_info_wrapper.removeClass('boundaries-info--double');
+          pdf_links.push(squiz.fn.generatePathToPDF(stored_address['state_district'], 'state'));
+          break;
+      }
+
+      var pdf_markup = squiz.fn.generatePDFLinks(pdf_links, selected_map); // Set dynamic content
+
+      $('.boundaries-info-utility__switch-container').html(switch_markup);
+      $('.boundaries-info-utility__pdfs').html(pdf_markup);
+    }
+  }; // Create map layer switch
+
+
+  squiz.fn.generateLayerSwitch = function (layer_type, switch_label) {
+    var switch_markup = '';
+    var input_id = 'boundaries-info-utility__switch-input--' + layer_type;
+    switch_markup += '<label class="boundaries-info-utility__switch">';
+    switch_markup += '<input id="' + input_id + '" type="checkbox" class="boundaries-info-utility__switch-input" data-type="' + layer_type + '" checked="" aria-label="Toggle for ' + switch_label + ' Boundary">';
+    switch_markup += '<span class="boundaries-info-utility__switch-slider"></span>';
+    switch_markup += '</label>';
+    switch_markup += '<label for="' + input_id + '" class="boundaries-info-utility__switch-label">' + switch_label + '</label>';
+    return switch_markup;
+  }; // Create PDF links to maps
+
+
+  squiz.fn.generatePDFLinks = function (pdf_links, selected_map) {
+    var pdf_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="13" height="16.5" viewBox="0 0 13 16.5">';
+    pdf_svg += '<g id="Group_6314" data-name="Group 6314" transform="translate(-9.25 -1.25)">';
+    pdf_svg += '<path id="Path_7095" d="M21.75 2v11.5M18 9.25l3.75 4.25 3.75-4" class="cls-1" data-name="Path 7095" transform="translate(-6)"></path>';
+    pdf_svg += '<path id="Path_7096" d="M10 46v4h11.5v-4" class="cls-1" data-name="Path 7096" transform="translate(0 -33)"></path>';
+    pdf_svg += '</g>';
+    pdf_svg += '</svg>';
+    var pdf_markup = '<ul class="boundaries-info-utility__pdf-list">';
+    pdf_links.forEach(function (pdf, pdf_index) {
+      var pdf_name;
+
+      if (selected_map === "local_council") {
+        pdf_name = 'Local Government Area';
+
+        if (pdf_index === 1) {
+          pdf_name = 'Division/Ward';
+        }
+      } else {
+        pdf_name = "Electorate";
+      }
+
+      pdf_markup += '<li class="boundaries-info-utility__pdf-item"><a href="' + pdf + '" class="boundaries-info-utility__pdf-link link--download" target="_blank">';
+      pdf_markup += '<span>Download ' + pdf_name + ' PDF</span>';
+      pdf_markup += pdf_svg + '</a></li>';
+    });
+    pdf_markup += '</ul>';
+    return pdf_markup;
+  }; // No address found handler
+
+
+  squiz.fn.noLocationFound = function () {
+    // Set address
+    squiz.fn.setFullAddressText(); // Reveal page
+
+    $('.boundaries__loader-wrapper').css({
+      'display': 'none'
+    });
+    $('.boundaries__error-wrapper').css({
+      'display': 'block'
+    });
+  };
+  /*
+      Map actions
+  */
+  // Toggle display of a single layer
+
+
+  squiz.fn.toggleMapLayer = function (layer_index) {
+    var map_layer = squiz['vars']['map_layers'][layer_index];
+    var map = map_layer['layer'].getMap();
+
+    if (map !== null) {
+      map_layer['layer'].setMap(null);
+    } else {
+      map_layer['layer'].setMap(squiz['vars']['boundaries_map']);
+    }
+  };
+  /*
+      Places Autocomplete
+  */
+  // Get address from storage
+
+
+  squiz.fn.getStoredAddress = function () {
+    var storage_key = squiz['vars']['storage_key'] + 'place';
+    var stored_address = Object(src_lib_storage__WEBPACK_IMPORTED_MODULE_1__[/* getStorage */ "a"])('local', storage_key);
+
+    if (stored_address !== null) {
+      return JSON.parse(stored_address);
+    }
+
+    return null;
+  }; // Create a map marker based on saved address
+
+
+  squiz.fn.createAddressMarker = function () {
+    var stored_address = squiz.fn.getStoredAddress();
+    var location = stored_address['geometry']['location'];
+    var address_marker = new google.maps.Marker({
+      'position': location,
+      'map': squiz['vars']['boundaries_map'],
+      'clickable': true
+    }); // Marker info window
+
+    var info_window_content = '<span class="subheading">Your Address</span>';
+    info_window_content += stored_address['address'].replace(',', ',<br />');
+    address_marker['info'] = new google.maps.InfoWindow({
+      'content': info_window_content
+    });
+    google.maps.event.addListener(address_marker, 'click', function () {
+      address_marker['info'].open(squiz['vars']['boundaries_map'], address_marker);
+    });
+  }; // Check for a saved address
+
+
+  squiz.fn.checkForAddress = function () {
+    var stored_address = squiz.fn.getStoredAddress();
+    var all_data_found = true; // If object exists
+
+    if (stored_address !== null) {
+      // If object exists but theres no geometry coordinates
+      // This happens if user has searched for something that Google Maps API couldnt' return results for
+      if (stored_address['geometry']) {
+        // Create the initial map
+        squiz.fn.createMap(); // Create address marker
+
+        squiz.fn.createAddressMarker(); // Check if we've got all the map data from the address
+
+        all_data_found = squiz.fn.checkAddressValues(stored_address);
+
+        if (all_data_found) {
+          // If at least state district and council area values exist, display the map
+          if (stored_address['state_district'] && stored_address['council_area']) {
+            squiz.fn.completeBoundaryPage();
+          } else {
+            // If no state district and no council area, display no location found message
+            squiz.fn.noLocationFound();
+          }
+        } else {
+          // Find map data and store in local storage
+          if (!stored_address.hasOwnProperty('state_district')) {
+            squiz.fn.findAddressBoundary(stored_address['geometry'], 'state_districts');
+          }
+
+          if (!stored_address.hasOwnProperty('council_area')) {
+            squiz.fn.findAddressBoundary(stored_address['geometry'], 'council_areas');
+          }
+
+          if (!stored_address.hasOwnProperty('council_ward')) {
+            squiz.fn.findAddressBoundary(stored_address['geometry'], 'council_ward');
+          }
+        }
+      } else {
+        squiz.fn.noLocationFound();
+      }
+    } else {
+      // Page only works with location. Redirect to enter in address
+      var redirect_location = document.querySelector('#boundaries-map').getAttribute('data-redirect');
+      window.location = redirect_location;
+    }
+  }; // Find boundary by address
+
+
+  squiz.fn.findAddressBoundary = function (address_coords, target_list) {
+    var location_object = address_coords['location']; // Add latitude values
+
+    location_object['minlat'] = location_object['lat'];
+    location_object['maxlat'] = location_object['lat']; // Add longitude values
+
+    location_object['minlng'] = location_object['lng'];
+    location_object['maxlng'] = location_object['lng'];
+    squiz['vars']['location'] = location_object;
+
+    switch (target_list) {
+      case 'state_districts':
+        squiz.fn.loadData('state-districts');
+        break;
+
+      case 'council_areas':
+        squiz.fn.loadData('council-areas');
+        break;
+
+      case 'council_ward':
+        squiz.fn.loadData('council-wards');
+        break;
+    }
+  };
+  /*
+      Ready
+  */
+
+
+  $(document).ready(function () {
+    var map_container = document.querySelector('#boundaries-map');
+
+    if (map_container) {
+      // Look for address and kick off process
+      squiz.fn.checkForAddress(); // Get list of candidates
+      // squiz.fn.getCandidates();
+    }
+  });
+})();
+
+/***/ }),
+/* 12 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var src_lib_utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(0);
+/* harmony import */ var src_lib_storage__WEBPACK_IMPORTED_MODULE_1__ = __webpack_require__(1);
+// Imports
+
+
+
+(function () {
+  'use strict';
+  /*
+      Private
+  */
+  // Process candidates
+
+  function processCandidates(response, request_type) {
+    var json_response = JSON.parse(response);
+
+    if (typeof squiz['vars']['candidates'] === 'undefined') {
+      squiz['vars']['candidates'] = {};
+    } // Save to local variable
+
+
+    squiz['vars']['candidates'][request_type] = json_response;
+  } // Find candidates
+
+
+  function findCandidates() {
+    var stored_address = squiz.fn.getStoredAddress();
+    var selected_map = stored_address['selected_map'];
+    var location_key = '';
+    var user_location = '';
+    var all_candidates = [];
+    var location_candidates = [];
+
+    switch (selected_map) {
+      case 'state_government':
+        location_key = 'Title';
+        user_location = stored_address['state_district'];
+        all_candidates = squiz['vars']['candidates']['state'];
+        break;
+
+      case 'local_council':
+        location_key = 'Division';
+        user_location = stored_address['council_ward'];
+        all_candidates = squiz['vars']['candidates']['council'];
+        break;
+    }
+
+    all_candidates.forEach(function (candidate, candidate_index) {
+      var candidate_location = candidate[location_key];
+
+      if (candidate_location.toLowerCase() === user_location.toLowerCase()) {
+        location_candidates.push(candidate);
+      }
+    });
+    renderCandidates(location_candidates);
+  } // Render candidate information
+
+
+  function renderCandidates(location_candidates) {
+    var candidate_wrapper = $('.current-representatives__wrapper');
+    var candidate_list = ''; // Generate markup for candidates
+
+    location_candidates.forEach(function (candidate, candidate_index) {
+      var candidate_name = candidate['Name'];
+      var candidate_party = candidate['Party'];
+      var candidate_type = candidate['Type'];
+      var candidate_title = 'Electorate';
+
+      switch (candidate_type) {
+        case 'C':
+          candidate_title = 'Councillor';
+          break;
+
+        case 'M':
+          candidate_title = 'Mayor';
+          break;
+      }
+
+      if (typeof candidate_party === 'undefined') {
+        candidate_party = '';
+      } // Construct the html
+
+
+      candidate_list += '<div class="current-representative__block current-representative__block--' + candidate_party.toLowerCase() + '">';
+      candidate_list += '<div class="current-representative__details">';
+      candidate_list += '<div class="current-representative__details-left-block">';
+      candidate_list += '<span class="current-representative__name">' + candidate_name + '</span>';
+      candidate_list += '<span class="current-representative__title">' + candidate_title + '</span>';
+      candidate_list += '</div>';
+      candidate_list += '<span class="current-representative__party">' + candidate_party + '</span>';
+      candidate_list += '</div>';
+      candidate_list += '</div>';
+    }); // Generate markup for section
+
+    var html_block = '<div class="current-representatives__inner">';
+    html_block += '<h2 class="current-representatives__heading">Current Representatives</h2>';
+    html_block += '<div class="current-representatives__listing">';
+    html_block += candidate_list;
+    html_block += '</div>';
+    html_block += '</div>'; // Add to the page
+
+    candidate_wrapper.html(html_block);
+  }
+  /*
+      Public
+  */
+  // Look for all candidates
+
+
+  squiz.fn.getCandidates = function () {
+    var boundaries_map = document.querySelector('#boundaries-map');
+    var state_government_candidates = boundaries_map.getAttribute('data-state-reps');
+    var local_government_candidates = boundaries_map.getAttribute('data-council-reps');
+    var xhr_parameters = {
+      'request_success': processCandidates,
+      'request_failure': src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* failedRequest */ "b"]
+    }; // State government candidates
+
+    xhr_parameters['request_url'] = state_government_candidates;
+    xhr_parameters['request_extras'] = 'state';
+    Object(src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* sendXHR */ "d"])(xhr_parameters, 'GET'); // Local government candidates
+
+    xhr_parameters['request_url'] = local_government_candidates;
+    xhr_parameters['request_extras'] = 'council';
+    Object(src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* sendXHR */ "d"])(xhr_parameters, 'GET');
+  }; // Initialise current representatives section
+
+
+  squiz.fn.initCurrentRepresentatives = function () {
+    var has_data = false;
+    var data_interval = setInterval(function () {
+      var candidates = squiz['vars']['candidates'];
+
+      if (typeof candidates !== 'undefined') {
+        if (typeof candidates['state'] !== 'undefined' && typeof candidates['council'] !== 'undefined') {
+          has_data = true;
+        }
+      } // All data found, continue
+
+
+      if (has_data) {
+        // Clear the interval checker
+        clearInterval(data_interval); // Look for area candidates
+
+        findCandidates();
+      }
+    }, 1);
+  };
+})();
+
+/***/ }),
+/* 13 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+
+  var form_dependent_select_module = function () {
+    function rebuildSelect($field_dependent_select) {
+      // For some reason, calling squiz.fn.initFormSelects() will result in an error. 
+      // Rebuild select2 the normal way
+      $field_dependent_select.select2({
+        'minimumResultsForSearch': Infinity,
+        'placeholder': "Please select",
+        'width': '100%'
+      });
+      $('.select2-selection__arrow').html('<span class="select2__chevron"></span>');
+    }
+
+    function areArraysIntersected(first_array, second_array) {
+      var intersected_values = first_array.filter(function (value) {
+        return second_array.indexOf(value) !== -1;
+      }); // console.log(intersected_values.length);
+
+      return intersected_values.length;
+    }
+
+    function updateDependentSelect($field_dependent_select, master_field_selected_field_array) {
+      // Get currently selected value
+      // var current_dependent_select_value = $field_dependent_select.val();
+      // Get all options of dependent select which has the data attribute of dependent values
+      var $dependent_select_options = $field_dependent_select.find("[data-dependent-values]"); // Loop through each option
+
+      $dependent_select_options.each(function (index) {
+        var $this_dependent_select_option = $(this);
+        var this_dependent_select_options_values_array = $this_dependent_select_option.data("dependent-values").split("|"); // If the master field has selected a value which exists in the dependent option array
+
+        if (areArraysIntersected(master_field_selected_field_array, this_dependent_select_options_values_array)) {
+          // Enable the option
+          $this_dependent_select_option.prop("disabled", false);
+        } else {
+          // Hide the option
+          $this_dependent_select_option.prop("disabled", true); // Check if this is a currently selected option. If so, reset to placeholder value
+
+          if ($this_dependent_select_option.prop("selected")) {
+            $this_dependent_select_option.prop("selected", false);
+          }
+        }
+      });
+      rebuildSelect($field_dependent_select);
+    }
+
+    function getSelectedValues($field) {
+      var selected_values_array = [];
+      var field_type = $field.prop("type");
+      var field_name = $field.prop("name");
+
+      if (field_type === "radio" || field_type === "checkbox") {
+        $("[name='" + field_name + "']:checked").each(function () {
+          selected_values_array.push($(this).val());
+        });
+      } else {
+        // This will usually apply to select fields
+        var selected_value = $field.val().trim(); // Have to check if empty because empty value attribute in
+        // select is equal to ""
+
+        if (selected_value.length) {
+          selected_values_array.push($field.val().trim());
+        }
+      } //console.log("Selected field value of " + field_name + " is " + selected_values_array);
+
+
+      return selected_values_array;
+    }
+
+    function checkDependentSelectsMatching($field) {
+      // Get array of selected values (single for selects and radios, multiple for checkboxes)
+      var this_field_selected_values_array = getSelectedValues($field); // Get this master field name
+      // Remember that if this a checkbox, it will have "[]" in its name so we need to remove it so that 
+      // we can find this field later in dependent group maps e.g. this_field_dependent_group_map[this_field_name]
+
+      var this_field_name = $field.prop("name").replace('[]', ''); // Get the dependent selects which will be an array of jQuery objects
+
+      var $field_dependent_selects = $field.data("dependent-selects"); // For each dependent select (jQuery object)
+
+      $field_dependent_selects.each(function (index) {
+        var $field_dependent_select = $(this);
+        updateDependentSelect($field_dependent_select, this_field_selected_values_array);
+      });
+    }
+
+    function field_changed(evt) {
+      // Get this field that has just changed
+      var $this_field = $(this);
+      checkDependentSelectsMatching($this_field);
+    }
+
+    function init() {
+      $dependent_selects = $("[data-dependent-select-on]");
+
+      if ($dependent_selects.length) {
+        $master_fields = $();
+        $dependent_selects.each(function (index) {
+          var $dependent_select = $(this);
+          var master_field_name = $dependent_select.data("dependent-select-on");
+          var $master_field_element = $("[name='" + master_field_name + "'], [name='" + master_field_name + "[]']"); // If field element(s) exists
+
+          if ($master_field_element.length) {
+            // dependent-selects will store jQuery objects of the dependent selects
+            // Get the current data value of data attribute dependent-selects
+            var field_element_dependent_selects_data = $master_field_element.data("dependent-selects"); // If no dependent_groups data added yet, 
+
+            if (!field_element_dependent_selects_data) {
+              // Add the first dependent group in an array
+              $master_field_element.data("dependent-selects", $dependent_select);
+            } else {
+              // Add dependent group against the master field with the previously added ones
+              // Using .add method to ensure elements in group is unique
+              $master_field_element.data("dependent-selects", field_element_dependent_selects_data.add($dependent_select));
+            }
+
+            $master_fields = $master_fields.add($master_field_element);
+          } else {
+            console.log("Dependent Select - Element with name, " + master_field_name + ", does not exist!");
+          }
+        }); // At this point,  the form field mapping should be finished
+
+        if ($master_fields.length) {
+          // Bind change event on master fields
+          $master_fields.change(field_changed); //-------------------------------------------------------------
+          // Trigger change event for initial set up
+          //-------------------------------------------------------------
+          // Trigger initial change event on each master select
+
+          var $master_select_fields = $master_fields.filter("select");
+          $master_select_fields.trigger("change"); // Trigger initial change event on each master checkbox
+
+          var $master_checkboxes = $master_fields.filter(":checkbox");
+          $master_checkboxes.trigger("change"); // Trigger initial change event on each radio field (Each field is a group of radios)
+          // Get unique field names from radios
+
+          var $master_radios = $master_fields.filter(":radio");
+          var master_radios_names = $master_radios.map(function () {
+            return $(this).prop("name");
+          }).get().filter(function (value, index, self) {
+            return self.indexOf(value) === index;
+          });
+          $.each(master_radios_names, function (index, name) {
+            var $master_radios = $("[name='" + name + "']"); // Trigger on only one radio of each field to avoid unnecessary repetition    
+
+            $master_radios.first().change();
+          });
+        }
+      }
+    }
+
+    var $dependent_selects;
+    var $master_fields;
+    return {
+      init: init
+    };
+  }();
+
+  document.addEventListener("DOMContentLoaded", function () {
+    form_dependent_select_module.init();
+  });
+})();
+
+/***/ }),
+/* 14 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var src_lib_storage__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(1);
+
+
+(function () {
+  'use strict';
+  /*
+      Private 
+  */
+  // Enable the search button
+
+  function enableAddressButton() {
+    var search_wrapper = $('.electorate__search-fields');
+    var disabled_class = 'button--disabled';
+    search_wrapper.find('.' + disabled_class).removeClass(disabled_class);
+  }
+
+  ;
+  /*
+      Places Autocomplete
+  */
+  // Find all autocomplete inputs and initialise
+
+  squiz.fn.initialiseLocationSearch = function (places_selector) {
+    // Configure the autocomplete results to bias towards addresses in Queensland
+    var queensland_lat_lng_bounds = new google.maps.LatLngBounds(new google.maps.LatLng(-20, 145)); // Initiate Google Autocomplete API on input
+
+    var autocomplete_input = new google.maps.places.SearchBox(places_selector, {
+      bounds: queensland_lat_lng_bounds
+    }); // Assign reference
+
+    squiz['vars']['address_autocomplete'] = autocomplete_input; // When the user selects an address from the dropdown, 
+    // populate the address fields in the form.
+
+    autocomplete_input.addListener('places_changed', squiz.fn.handleAddressSearch); // Bind click event on search button
+    // When the search button is clicked, trigger places_changed event
+    // Must do so with "focus and enter" keystroke events
+
+    $('.electorate__search-fields').find(".button").click(function (event) {
+      event.preventDefault(); // Trigger places_changed event
+
+      google.maps.event.trigger(places_selector, 'focus', {});
+      google.maps.event.trigger(places_selector, 'keydown', {
+        keyCode: 13
+      });
+    });
+  }; // Handle address change
+
+
+  squiz.fn.handleAddressSearch = function (data) {
+    var places = squiz['vars']['address_autocomplete'].getPlaces();
+    var formatted_address;
+    var geometry;
+    var default_map = "state_government";
+
+    if ($("[data-defaultmap]").length) {
+      default_map = $("[data-defaultmap]").data("defaultmap");
+    }
+
+    if (places.length) {
+      var place = places[0];
+      formatted_address = place['formatted_address'].replace(', Australia', '');
+      geometry = place['geometry']; // Update the input field with formatted address
+
+      document.querySelector('[data-gmaps="true"]').value = formatted_address;
+    } else {
+      // Get string from input field
+      formatted_address = $("#boundaries_search").val();
+    }
+
+    var storage_object = {
+      'address': formatted_address,
+      'geometry': geometry,
+      'selected_map': default_map
+    }; // Save to session
+
+    squiz.fn.storeAddressSearch(storage_object); // Redirect user with URL stored in href attribute of search anchor link
+
+    window.location.href = $(".electorate__search-fields .button").attr("href");
+    ;
+  }; // Save address to storage
+
+
+  squiz.fn.storeAddressSearch = function (storage_object) {
+    var storage_key = squiz['vars']['storage_key'] + 'place';
+    Object(src_lib_storage__WEBPACK_IMPORTED_MODULE_0__[/* setStorage */ "b"])('local', storage_key, storage_object);
+  };
+  /*
+      Ready
+  */
+
+
+  $(document).ready(function () {
+    var places_selector = document.querySelector('[data-gmaps="true"]');
+
+    if (places_selector !== null) {
+      squiz.fn.initialiseLocationSearch(places_selector);
+    }
+  });
+})();
+
+/***/ }),
+/* 15 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+
+  if ($('.footer__back-to-top__btn').length !== 0) {
+    var backToTop = $('.footer__back-to-top__btn');
+    $(window).scroll(function () {
+      if ($(window).scrollTop() > 200) {
+        backToTop.addClass('show');
+      } else {
+        backToTop.removeClass('show');
+      }
+
+      var docViewBottom = $(window).scrollTop() + $(window).height();
+      var viewWidth = $(window).width();
+      var detectBuffer = 80;
+      var bottomBuffer = 70;
+
+      if (viewWidth > 767 && viewWidth < 991) {
+        detectBuffer = 30;
+      } else if (viewWidth < 768) {
+        detectBuffer = 10;
+        bottomBuffer = 60;
+      }
+
+      var elemTop = $('footer').offset().top + detectBuffer;
+      var position = $('footer').height() + bottomBuffer;
+
+      if (elemTop <= docViewBottom) {
+        backToTop.parent().addClass('absolute');
+        backToTop.parent().css('bottom', position + 'px');
+      } else {
+        backToTop.parent().removeClass('absolute');
+        backToTop.parent().css('bottom', '');
+      }
+    });
+    backToTop.on('click', function (e) {
+      e.preventDefault();
+      $('html, body').animate({
+        scrollTop: 0
+      }, '300');
+    });
+  }
+})();
+
+/***/ }),
+/* 16 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+  /*
+      Functions
+  */
+  // Initialise Select2 plugin for form content
+
+  squiz.fn.initFormSelects = function () {
+    $('.sq-form-question-select, .sq-form-question-country').each(function (item_index, item) {
+      var placeholder = "Please select";
+      var select_inputs = $(item).find('select');
+      select_inputs.select2({
+        'minimumResultsForSearch': Infinity,
+        'placeholder': placeholder,
+        'width': '100%'
+      });
+    });
+    $('.sq-form-question-datetime').each(function (item_index, item) {
+      var placeholder = "Please select";
+      var select_inputs = $(item).find('select');
+      select_inputs.select2({
+        'minimumResultsForSearch': Infinity,
+        'placeholder': placeholder,
+        'width': '90px'
+      });
+    });
+    $('.select2-selection__arrow').html('<span class="select2__chevron"></span>');
+  }; // Initialise jQuery Validate
+
+
+  squiz.fn.initValidation = function () {
+    var page_form = $('.main form'); // Validation config
+
+    var question_selector = '.sq-form-question';
+    var error_class = 'validation--error';
+    var valid_class = 'validation--valid';
+    var config = {
+      'errorLabelContainer': ".sq-form-errors-message",
+      'ignore': ":hidden",
+      'submitHandler': function submitHandler(form, event) {
+        form.submit();
+      },
+      'invalidHandler': function invalidHandler(event, validator) {
+        // 
+        if (!validator.numberOfInvalids()) {
+          return;
+        } // Scroll to the first error
+
+
+        $('html, body').animate({
+          scrollTop: $(validator.errorList[0].element).offset().top - 100
+        }, 500, 'linear');
+      },
+      'errorPlacement': function errorPlacement(error, element) {
+        // error.appendTo($(element[0]).parents('.hi_form-set')[0]);
+        error.insertAfter(element);
+      },
+      'highlight': function highlight(element) {
+        $(element).parents(question_selector).addClass(error_class);
+      },
+      'unhighlight': function unhighlight(element) {
+        $(element).parents(question_selector).removeClass(error_class);
+      },
+      rules: {
+        required: 'required'
+      }
+    }; // Perform validation
+
+    page_form.validate(config);
+  };
+  /*
+      Ready
+  */
+
+
+  $(document).ready(function () {
+    // Only init on forms
+    if ($('.sq-form-question').length) {
+      squiz.fn.initFormSelects();
+      squiz.fn.initValidation();
+    }
+  });
+})();
+
+/***/ }),
+/* 17 */
+/***/ (function(module, __webpack_exports__, __webpack_require__) {
+
+"use strict";
+__webpack_require__.r(__webpack_exports__);
+/* harmony import */ var src_lib_utils__WEBPACK_IMPORTED_MODULE_0__ = __webpack_require__(0);
+// Imports
+
+
+(function () {
+  'use strict';
+  /*
+      Functions
+  */
+
+  squiz.fn.initAutocomplete = function () {
+    var autocomplete_url = $('.header-search__fields').attr('data-autocomplete');
+    var search_query = $('.header-search__input').val();
+    autocomplete_url += '&queries_keywords_query=' + search_query; // Prepare XHR request
+
+    var xhr_parameters = {
+      'request_url': autocomplete_url,
+      'request_extras': '',
+      'request_success': squiz.fn.loadAutocompleteResults,
+      'request_failure': src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* failedRequest */ "b"]
+    };
+
+    if (Object(src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* isDevelopment */ "c"])()) {
+      /* Local */
+      xhr_parameters['request_url'] = './externals/sample-autocomplete.html';
+    }
+
+    Object(src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* sendXHR */ "d"])(xhr_parameters, 'GET');
+  };
+
+  squiz.fn.loadAutocompleteResults = function (raw_html) {
+    var autocomplete_container = $('.header-search__autocomplete-wrapper');
+    var autocomplete_content = $('.header-search__autocomplete');
+    autocomplete_container.removeClass('visuallyhidden');
+    autocomplete_content.html(raw_html);
+  };
+  /*
+      Ready
+  */
+
+
+  $(document).ready(function () {
+    var header_search_field = document.querySelector('.header-search__input');
+    header_search_field.addEventListener('keyup', Object(src_lib_utils__WEBPACK_IMPORTED_MODULE_0__[/* debouncer */ "a"])(squiz.fn.initAutocomplete, 200));
+  });
+})();
+
+/***/ }),
+/* 18 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict'; //
+
+  squiz.fn.electionDateCountdown = function () {
+    var countdownElement = document.querySelector('.homepage-banner__countdown');
+
+    if (countdownElement != null) {
+      var election_date_data = countdownElement.dataset.electionDate; //Set AEST timezone
+
+      var today = moment.tz.setDefault("Australia/Brisbane");
+      var electionDate = new Date(election_date_data);
+      var millisecondsPerDay = 24 * 60 * 60 * 1000;
+      var daysRemaining = Math.ceil((electionDate.getTime() - today.utc().toDate()) / millisecondsPerDay);
+      var daysRemainingText = ' days ';
+
+      if (daysRemaining === 1) {
+        daysRemainingText = ' day ';
+      } //console.log(daysRemaining + daysRemainingText);
+
+
+      countdownElement.textContent = daysRemaining + daysRemainingText;
+    }
+  };
+
+  squiz.fn.votingEndCountdown = function () {
+    var bannerElement = document.querySelector('.homepage-banner--cycle-3');
+    var countdownElement = document.querySelector('.voting-countdown');
+
+    if (bannerElement != null && countdownElement != null) {
+      // time selectors
+      var dayCounter = countdownElement.querySelector('.voting-countdown__days').querySelector('.voting-countdown__time');
+      var hourCounter = countdownElement.querySelector('.voting-countdown__hours').querySelector('.voting-countdown__time');
+      var minuteCounter = countdownElement.querySelector('.voting-countdown__minutes').querySelector('.voting-countdown__time'); // get the end date
+
+      var election_date_data = countdownElement.dataset.votingClose; //Set AEST timezone
+
+      var now = moment.tz.setDefault("Australia/Brisbane"); // voting close date/time
+
+      var closeDate = new Date(election_date_data);
+      var isDateInFuture = closeDate > now.utc().toDate();
+      var votingOpenSelector = bannerElement.querySelector('.voting-open');
+      var votingClosedSelector = bannerElement.querySelector('.voting-closed');
+
+      if (isDateInFuture) {
+        votingOpenSelector.classList.add('active'); // First time update
+
+        squiz.fn.votingEndCountdownUpdater(closeDate, dayCounter, hourCounter, minuteCounter);
+        var updateTime = setInterval(function () {
+          //Get AEST timezone
+          var aestTime = new Date().toLocaleString("en-US", {
+            timeZone: "Australia/Brisbane"
+          });
+          var now = moment.tz.setDefault("Australia/Brisbane");
+          var isDateInPast = now.utc().toDate() > closeDate;
+
+          if (isDateInPast) {
+            votingOpenSelector.classList.remove('active');
+            votingClosedSelector.classList.add('active');
+            countdownElement.querySelector('.voting-countdown__title').textContent = 'Voting has closed';
+            console.log('voting closed');
+            clearInterval(updateTime);
+          } else {
+            squiz.fn.votingEndCountdownUpdater(closeDate, dayCounter, hourCounter, minuteCounter);
+          }
+        }, 30000);
+      } else {
+        votingClosedSelector.classList.add('active');
+        countdownElement.querySelector('.voting-countdown__title').textContent = 'Voting has closed'; // print empty 00 values
+
+        dayCounter.textContent = '00';
+        hourCounter.textContent = '00';
+        minuteCounter.textContent = '00';
+      }
+    }
+  };
+
+  squiz.fn.votingEndCountdownUpdater = function (closeDate, dayCounter, hourCounter, minuteCounter) {
+    //Get AEST timezone
+    var now = moment.tz.setDefault("Australia/Brisbane");
+    var seconds = Math.floor((closeDate - now.utc().toDate()) / 1000);
+    var minutes = Math.floor(seconds / 60);
+    var hours = Math.floor(minutes / 60);
+    var days = Math.floor(hours / 24);
+    hours = hours - days * 24;
+    minutes = minutes - days * 24 * 60 - hours * 60; // prepend 0 to timecodes if they are only single digit. Eg: change 1 to 01
+
+    if (days.toString().length == 1) {
+      days = '0' + days;
+    }
+
+    if (hours.toString().length == 1) {
+      hours = '0' + hours;
+    }
+
+    if (minutes.toString().length == 1) {
+      minutes = '0' + minutes;
+    } // print the values
+
+
+    dayCounter.textContent = days;
+    hourCounter.textContent = hours;
+    minuteCounter.textContent = minutes;
+  };
+  /*
+      Ready
+  */
+
+
+  $(document).ready(function () {
+    squiz.fn.electionDateCountdown();
+    squiz.fn.votingEndCountdown();
+  });
+})();
+
+/***/ }),
+/* 19 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+})();
+
+/***/ }),
+/* 20 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+})();
+
+/***/ }),
+/* 21 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+})();
+
+/***/ }),
+/* 22 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+  /*
+   * =================================
+   * Natural Language Query Card Module
+   * =================================
+   * 
+   * Initialise select2 on select dropdowns
+   * 
+   */
+
+  var natural_language_query_card_module = function () {
+    // The decision tree matrix asset dynamically creates new selects fields with Ajax
+    // Need to init select2 on dynamically added select field or destroy it when removed from DOM
+    // Everytime a new field is shown/removed, a div with class "sq_question_wrapper" which contains
+    // the select field is available
+    function setupDynamicSelect() {
+      var observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
+          if (mutation.addedNodes.length) {
+            var addedNodesArray = [].slice.call(mutation.addedNodes); // For each added node
+
+            addedNodesArray.forEach(function (node) {
+              if (node.className === "sq_question_wrapper") {
+                // Find all child selects
+                $(node).find('select').each(function () {
+                  // Initialise select2 on the dynamically added select2
+                  initSelect($(this));
+                });
+              }
+            });
+          }
+
+          if (mutation.removedNodes.length) {
+            var removedNodesArray = [].slice.call(mutation.removedNodes); // For each removed node
+
+            removedNodesArray.forEach(function (node) {
+              if (node.className === "sq_question_wrapper") {
+                // Find all child selects
+                $(node).find('select').each(function () {
+                  // Destroy select2 applied on removed select
+                  $(this).select2('destroy');
+                });
+              }
+            });
+          }
+        });
+      }); // Configuration of the observer
+      // Only observe child elements added or removed from DOM
+      // Need subtree to target descendants, not just direct child
+
+      var config = {
+        childList: true,
+        subtree: true
+      }; // pass in the target node, as well as the observer options
+
+      observer.observe(natural_language_query_card.dom.$questionnaire[0], config);
+    } // Initialise select2 on select field
+
+
+    function initSelect($select) {
+      // Remove the first option
+      // Should select the next available option
+      $select.find("option").first().remove(); // Removing the first option should auto select the next option
+      // Initiate change event
+
+      $select.change(); // Initialise select2
+
+      $select.select2({
+        minimumResultsForSearch: -1,
+        width: 'style'
+      }); // Replace default presentation arrow
+
+      $select.data('select2').$container.find('.select2-selection__arrow').html('<span class="select2__chevron"></span>');
+    }
+
+    function cacheElements() {
+      // Get questionnaire form
+      natural_language_query_card.dom.$questionnaire = natural_language_query_card.dom.$root.find(".natural-language-query-card__questionnaire"); // Get select (Should only be 1 on page load due to how the card is set up)
+
+      natural_language_query_card.dom.$select = natural_language_query_card.dom.$questionnaire.find("select");
+    } // Initialise module
+
+
+    function init() {
+      natural_language_query_card.dom = {}; // Get root node
+
+      natural_language_query_card.dom.$root = $(".natural-language-query-card__wrapper"); // If root node exists
+
+      if (natural_language_query_card.dom.$root.length) {
+        cacheElements();
+        setupDynamicSelect(); // Initialise the first visible select on page
+
+        initSelect(natural_language_query_card.dom.$select);
+      }
+    }
+
+    var natural_language_query_card = {};
+    return {
+      init: init
+    };
+  }();
+
+  document.addEventListener("DOMContentLoaded", function () {
+    natural_language_query_card_module.init();
+  });
+})();
+
+/***/ }),
+/* 23 */
+/***/ (function(module, exports) {
+
+function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+
+(function () {
+  'use strict';
+  /*
+   Functions
+  */
+  // Set active class based on current lineage
+
+  squiz.fn.initActiveState = function () {
+    // Get lineage
+    var lineage = $(".header__navigation").data("lineage"); // If lineage array
+
+    if (_typeof(lineage) === "object") {
+      // Each list item should have a data attribute called asset id
+      // Filter through and see which list item has an asset id which exists in lienage array
+      // Add class to any list item if exists
+      var filtered_list_items = $('.nav-primary li[data-assetid]').filter(function (index) {
+        // This gets the asset id in number format type first;
+        // Asset id must be converted into a string first so that it can match correctly in indexOf
+        var this_asset_id = $(this).data("assetid").toString(); // Return this list item only if lineage array has this asset id
+
+        return lineage.indexOf(this_asset_id) !== -1;
+      }).addClass("active");
+    }
+  }; // Attach / detach header on window scroll
+
+
+  squiz.fn.toggleFixedHeader = function () {
+    var header = document.querySelector('.nav-primary__wrapper');
+    var fixed_position = header.offsetTop;
+
+    if (window.pageYOffset > fixed_position) {
+      header.classList.add('fixed');
+    } else {
+      header.classList.remove('fixed');
+    }
+  }; // Toggle the display of primary navigation menus
+
+
+  squiz.fn.toggleDesktopNavMenus = function (event) {
+    var device_check = $('body').css('z-index');
+    var target = $(event.target);
+    var target_id = target.attr('id'); // Reset all other checkboxes on desktop
+
+    if (device_check === '3') {
+      $('.nav-item__control').each(function (input_index, input) {
+        var input_id = $(input).attr('id'); // Don't disable the input we just checked
+
+        if (input_id !== target_id && $(input).is(':checked')) {
+          $(input).prop('checked', false);
+          $(input).blur();
+        }
+      });
+    }
+  }; // Enable checkbox for menu on hover to display
+
+
+  squiz.fn.checkMenuOnHover = function (event) {
+    var device_check = $('body').css('z-index');
+    var target = $(event.currentTarget);
+
+    if (device_check === '3') {
+      // Check the checkbox to enable menu and 
+      // trigger squiz.fn.toggleDesktopNavMenus function then
+      // focus the input to aid in keyboard navigation
+      target.find('.nav-item__control').click();
+      target.find('.nav-item__control').focus();
+    }
+  }; // Show current page in mobile menu
+
+
+  squiz.fn.initMobileMenuActiveState = function () {
+    var device_check = $('body').css('z-index');
+
+    if (device_check !== '3') {
+      $('.nav-primary__item.active > input').prop('checked', 'true');
+    }
+  }; // Ready
+
+
+  window.onscroll = function () {
+    squiz.fn.toggleFixedHeader();
+  };
+
+  $(document).ready(function () {
+    squiz.fn.initActiveState();
+    squiz.fn.initMobileMenuActiveState(); // Menu helper functions
+
+    $('.nav-primary__item').hover(squiz.fn.checkMenuOnHover, squiz.fn.toggleDesktopNavMenus);
+    $('.nav-primary__item .nav-item__control').focus(squiz.fn.toggleDesktopNavMenus); // Binds
+
+    $('body').on('change', '.nav-item__control', squiz.fn.toggleDesktopNavMenus);
+  });
+})();
+
+/***/ }),
+/* 24 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+})();
+
+/***/ }),
+/* 25 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+})();
+
+/***/ }),
+/* 26 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+  /*
+      Events
+  */
+
+  squiz.fn.switchTabbedContent = function (event) {
+    var target_link = $(event.target);
+    var target_content = target_link.attr('data-for');
+    var tabs_content_wrapper = $('.tabs-navigation__content');
+    var target_content = '.tabbed-content__wrapper[data-for="' + target_content + '"]'; // Reset styles
+
+    $('.tabs-navigation__item').removeClass('active');
+    $('.tabbed-content__wrapper').css({
+      'display': 'none'
+    }); // Apply styles
+
+    target_link.parent().addClass('active');
+    tabs_content_wrapper.find(target_content).css({
+      'display': 'block'
+    });
+    return false;
+  };
+  /*
+      Ready
+  */
+
+
+  $(document).ready(function () {
+    // Binds
+    $('body').on('click', '.tabs-navigation__link', squiz.fn.switchTabbedContent);
+  });
+})();
+
+/***/ }),
+/* 27 */
+/***/ (function(module, exports) {
+
+(function () {
+  'use strict';
+})();
+
+/***/ })
+],[[2,1]]]);
